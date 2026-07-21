@@ -12,10 +12,19 @@ class Tokenizer
 {
   private:
     std::ifstream input;
-    std::vector<std::string> token;
+    std::string token;
     std::string currentLine;
     std::unordered_set<char> delimiters{' ', '\t', '\n', '\r', '(', ')', '[',
                                         ']', '{',  '}',  '.',  ',', ';', ':'};
+    inline static const std::unordered_set<std::string> keyword = {
+        "class", "constructor", "function", "method",  "field", "static",
+        "var",   "int",         "char",     "boolean", "void",  "true",
+        "false", "null",        "this",     "let",     "do",    "if",
+        "else",  "while",       "return"};
+
+    inline static const std::unordered_set<char> symbols = {
+        '{', '}', '(', ')', '[', ']', '.', ',', ';', '+',
+        '-', '*', '/', '&', '|', '<', '>', '=', '~'};
 
   public:
     enum class TokenType
@@ -76,11 +85,11 @@ class Tokenizer
      * @brief Returns the keyword which is the current token, as a constant.
      * This method should be called only if tokenType() is KEYWORD.
      */
-    KeyWord keyword() const;
+    KeyWord getKeyword() const;
 
     /**
      * @brief Returns the character which is the current token.
-     * Should be called only if tokenType() is SYMBOL.
+     * Should becalled only if tokenType() is SYMBOL.
      */
     char symbol() const;
 
@@ -102,6 +111,11 @@ class Tokenizer
      * STRING_CONST.
      */
     std::string stringVal() const;
+
+    /*
+     * @brief returns current token value
+     */
+    std::string getToken() { return token; }
 };
 
 #endif

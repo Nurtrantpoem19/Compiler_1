@@ -1,8 +1,10 @@
 #include "Tokenizer.hpp"
+#include <cctype>
 #include <sstream>
+#include <stdexcept>
 
 Tokenizer::Tokenizer(const std::filesystem::path inputPath)
-    : currentLine(""), token(0)
+    : currentLine(""), token("")
 {
     input.open(inputPath);
     if (!input.is_open())
@@ -22,82 +24,127 @@ bool Tokenizer::hasMoreTokens()
     {
         return false;
     }
-    else
+
+    if (nextChar == '/')
     {
-        if (nextChar == '/')
+        input.get();
+        int secondChar = input.peek();
+
+        if (secondChar == '/')
+        {
+            std::string temp;
+            std::getline(input, temp);
+            return hasMoreTokens();
+        }
+        else if (secondChar == '*')
         {
             input.get();
-            int secondChar = input.peek();
-
-            if (secondChar == EOF)
+            char c1 = ' ', c2 = ' ';
+            while (input.get(c2) && !((c1 == '*') && (c2 == '/')))
             {
-                return false;
+                c1 = c2;
             }
-            else if (secondChar == '/')
-            {
-                std::string temp;
-                std::getline(input, temp);
-                return hasMoreTokens();
-            }
-            else if (secondChar == '*')
-            {
-                input.get();
-                char c1 = ' ', c2 = ' ';
-                while (input.get(c2) && !((c1 == '*') && (c2 == '/')))
-                {
-                    c1 = c2;
-                }
-                return hasMoreTokens();
-            }
-            else
-            {
-                input.unget();
-                return true;
-            }
+            return hasMoreTokens();
+        }
+        else
+        {
+            input.unget();
+            return true;
         }
     }
     return true;
 }
 
-// Advances to the next token, making it the current token
 void Tokenizer::advance()
 {
 
     std::string buffer = "";
     char c = ' ';
     int peek = 0;
-    while (input.get(c))
+
+    if (!input.get(c))
     {
-        peek = input.peek();
-        if (delimiters.find(static_cast<char>(peek)) != delimiters.end())
+        return;
+    }
+
+    if (c == '"')
+    {
+        buffer += c;
+        while (input.get(c))
         {
-            if (!buffer.empty())
+            buffer += c;
+            if (c == '"')
             {
-                token.push_back(buffer);
+                token = buffer;
                 buffer.clear();
+                return;
             }
         }
-        else
-        {
-            buffer += (c);
-        }
     }
 
-    if (!buffer.empty())
+    if (delimiters.find(c) != delimiters.end())
     {
-        token.push_back(buffer);
+        buffer.push_back(c);
+        token = buffer;
+        return;
     }
+
+    buffer += c;
+    while (input.get(c))
+    {
+        if (delimiters.find(c) != delimiters.end())
+        {
+            input.unget();
+            break;
+        }
+
+        buffer += c;
+    }
+    token = buffer;
+    buffer.clear();
+    return;
 }
 
-// Returns the type of the current token
 Tokenizer::TokenType Tokenizer::tokenType() const
 {
-    // TODO: Determine and return the actual type of the current token.
-    return TokenType::KEYWORD;
+
+    if (token.empty())
+    {
+        throw std::runtime_error("no token");
+    }
+
+    if (token.front() == '"' && token.back() == '"')
+    {
+        return TokenType::STRING_CONST;
+    }
+
+    if (token.length() == 1 && symbols.find(token[0]) != symbols.end())
+    {
+        return TokenType::SYMBOL;
+    }
+
+    if (keyword.find(token) != keyword.end())
+    {
+        return TokenType::KEYWORD;
+    }
+
+    bool isInt = true;
+    for (const char &c : token)
+    {
+        if (!std::isdigit(c))
+        {
+            isInt = false;
+        }
+    }
+    if (isInt)
+    {
+        return TokenType::INT_CONST;
+    }
+
+    return TokenType::IDENTIFIER;
 }
 
-// Returns the keyword of the current token
-Tokenizer::KeyWord Tokenizer::keyword() const
+Tokenizer::KeyWord Tokenizer::getKeyword() const
 {
     // TODO: Return the correct KeyWord enum value.
     // Should only be called if tokenType() is KEYWORD.
