@@ -186,3 +186,52 @@ TEST_F(TokenizerTest, TokenTypeChecks)
     }
     EXPECT_FALSE(tokenizer.hasMoreTokens());
 }
+
+TEST_F(TokenizerTest, KeyWordTypeChecks)
+{
+    std::string testString = "class constructor function method field static "
+                             "var int char boolean void true false null this "
+                             "let do if else while return";
+
+    CreateTestFile(testString);
+    Tokenizer tokenizer(tempFilePath);
+
+    std::vector<std::pair<std::string, Tokenizer::KeyWord>> expected = {
+        {"class", Tokenizer::KeyWord::CLASS},
+        {"constructor", Tokenizer::KeyWord::CONSTRUCTOR},
+        {"function", Tokenizer::KeyWord::FUNCTION},
+        {"method", Tokenizer::KeyWord::METHOD},
+        {"field", Tokenizer::KeyWord::FIELD},
+        {"static", Tokenizer::KeyWord::STATIC},
+        {"var", Tokenizer::KeyWord::VAR},
+        {"int", Tokenizer::KeyWord::INT},
+        {"char", Tokenizer::KeyWord::CHAR},
+        {"boolean", Tokenizer::KeyWord::BOOLEAN},
+        {"void", Tokenizer::KeyWord::VOID},
+        {"true", Tokenizer::KeyWord::TRUE},
+        {"false", Tokenizer::KeyWord::FALSE},
+        {"null", Tokenizer::KeyWord::NULL_VAL},
+        {"this", Tokenizer::KeyWord::THIS},
+        {"let", Tokenizer::KeyWord::LET},
+        {"do", Tokenizer::KeyWord::DO},
+        {"if", Tokenizer::KeyWord::IF},
+        {"else", Tokenizer::KeyWord::ELSE},
+        {"while", Tokenizer::KeyWord::WHILE},
+        {"return", Tokenizer::KeyWord::RETURN}};
+
+    int i = 0;
+    for (const auto &[expectedToken, expectedKw] : expected)
+    {
+        SCOPED_TRACE("Token index " + std::to_string(i++) +
+                     ": expecting keyword '" + expectedToken + "'\n");
+
+        ASSERT_TRUE(tokenizer.hasMoreTokens());
+        tokenizer.advance();
+
+        EXPECT_EQ(tokenizer.getToken(), expectedToken);
+        EXPECT_EQ(tokenizer.tokenType(), Tokenizer::TokenType::KEYWORD);
+        EXPECT_EQ(tokenizer.getKeyword(), expectedKw);
+    }
+
+    EXPECT_FALSE(tokenizer.hasMoreTokens());
+}

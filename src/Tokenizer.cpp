@@ -2,6 +2,7 @@
 #include <cctype>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_map>
 
 Tokenizer::Tokenizer(const std::filesystem::path inputPath)
     : currentLine(""), token("")
@@ -146,9 +147,39 @@ Tokenizer::TokenType Tokenizer::tokenType() const
 
 Tokenizer::KeyWord Tokenizer::getKeyword() const
 {
-    // TODO: Return the correct KeyWord enum value.
-    // Should only be called if tokenType() is KEYWORD.
-    return KeyWord::CLASS;
+
+    static const std::unordered_map<std::string, Tokenizer::KeyWord> keyMap = {
+        {"class", KeyWord::CLASS},
+        {"method", KeyWord::METHOD},
+        {"function", KeyWord::FUNCTION},
+        {"constructor", KeyWord::CONSTRUCTOR},
+        {"int", KeyWord::INT},
+        {"boolean", KeyWord::BOOLEAN},
+        {"char", KeyWord::CHAR},
+        {"void", KeyWord::VOID},
+        {"var", KeyWord::VAR},
+        {"static", KeyWord::STATIC},
+        {"field", KeyWord::FIELD},
+        {"let", KeyWord::LET},
+        {"do", KeyWord::DO},
+        {"if", KeyWord::IF},
+        {"else", KeyWord::ELSE},
+        {"while", KeyWord::WHILE},
+        {"return", KeyWord::RETURN},
+        {"true", KeyWord::TRUE},
+        {"false", KeyWord::FALSE},
+        {"null", KeyWord::NULL_VAL},
+        {"this", KeyWord::THIS}
+
+    };
+
+    auto it = keyMap.find(token);
+    if (it != keyMap.end())
+    {
+        return it->second;
+    }
+
+    throw std::runtime_error("ERROR: not a keyword");
 }
 
 // Returns the single character of the current token
