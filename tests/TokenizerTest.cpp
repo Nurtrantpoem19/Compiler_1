@@ -235,3 +235,217 @@ TEST_F(TokenizerTest, KeyWordTypeChecks)
 
     EXPECT_FALSE(tokenizer.hasMoreTokens());
 }
+
+TEST_F(TokenizerTest, HandlesSymbols)
+{
+    // Includes separated symbols, back-to-back symbols, and operators
+    std::string testString = "{ } ( ) [ ] . , ; + - * / & | < > = ~ "
+                             "{};()";
+
+    CreateTestFile(testString);
+    Tokenizer tokenizer(tempFilePath);
+
+    std::vector<std::string> expected = {
+        "{", "}", "(", ")", "[", "]", ".", ",", ";", "+", "-", "*",
+        "/", "&", "|", "<", ">", "=", "~", "{", "}", ";", "(", ")"};
+
+    int i = 0;
+    for (const auto &expectedSym : expected)
+    {
+        SCOPED_TRACE("Token index: " + std::to_string(i++) +
+                     " expected symbol is: " + expectedSym + "\n");
+        ASSERT_TRUE(tokenizer.hasMoreTokens());
+        tokenizer.advance();
+        EXPECT_EQ(tokenizer.tokenType(), Tokenizer::TokenType::SYMBOL);
+        EXPECT_EQ(tokenizer.symbol(), expectedSym[0]);
+    }
+}
+
+TEST_F(TokenizerTest, HandlesSymbolsInExpressions)
+{
+    std::string testString = "arr[i] = (x + 5) * (y - 3);";
+
+    CreateTestFile(testString);
+    Tokenizer tokenizer(tempFilePath);
+
+    std::vector<std::string> expected = {"arr", "[", "i", "]", "=", "(",
+                                         "x",   "+", "5", ")", "*", "(",
+                                         "y",   "-", "3", ")", ";"};
+
+    int i = 0;
+    for (const auto expectedToken : expected)
+    {
+        SCOPED_TRACE("Token index: " + std::to_string(i++) +
+                     " expecting token: '" + expectedToken + "'\n");
+
+        ASSERT_TRUE(tokenizer.hasMoreTokens());
+        tokenizer.advance();
+
+        if (tokenizer.tokenType() == Tokenizer::TokenType::SYMBOL &&
+            (expectedToken.length() == 1))
+        {
+            EXPECT_EQ(tokenizer.symbol(), expectedToken[0]);
+        }
+        else
+        {
+            EXPECT_EQ(tokenizer.getToken(), expectedToken);
+        }
+    }
+
+    EXPECT_FALSE(tokenizer.hasMoreTokens());
+}
+
+TEST_F(TokenizerTest, IdentifiersCheck)
+{
+    std::string teststring = "let square = Square.new(0,0,30);";
+
+    CreateTestFile(teststring);
+
+    Tokenizer tokenizer(tempFilePath);
+
+    std::vector<std::pair<std::string, Tokenizer::TokenType>> expectedTokens = {
+        {"let", Tokenizer::TokenType::KEYWORD},
+        {"square", Tokenizer::TokenType::IDENTIFIER}, // Variable
+        {"=", Tokenizer::TokenType::SYMBOL},
+        {"Square", Tokenizer::TokenType::IDENTIFIER}, // Class name
+        {".", Tokenizer::TokenType::SYMBOL},
+        {"new", Tokenizer::TokenType::IDENTIFIER}, // Method/constructor name
+        {"(", Tokenizer::TokenType::SYMBOL},
+        {"0", Tokenizer::TokenType::INT_CONST},
+        {",", Tokenizer::TokenType::SYMBOL},
+        {"0", Tokenizer::TokenType::INT_CONST},
+        {",", Tokenizer::TokenType::SYMBOL},
+        {"30", Tokenizer::TokenType::INT_CONST},
+        {")", Tokenizer::TokenType::SYMBOL},
+        {";", Tokenizer::TokenType::SYMBOL}};
+
+    int i = 0;
+    for (const auto &[expectedString, expectedType] : expectedTokens)
+    {
+        ASSERT_TRUE(tokenizer.hasMoreTokens());
+
+        tokenizer.advance();
+
+        EXPECT_EQ(tokenizer.tokenType(), expectedType);
+        if (expectedType == Tokenizer::TokenType::IDENTIFIER)
+        {
+            i++;
+            EXPECT_EQ(tokenizer.identifier(), expectedString);
+        }
+    }
+    EXPECT_EQ(i, 3);
+
+    EXPECT_FALSE(tokenizer.hasMoreTokens());
+}
+
+TEST_F(TokenizerTest, HandlesIntConstants)
+{
+    std::string testString = "let numbers[0] = 32767;\n"
+                             "let total = 100 + 42 - 0;";
+
+    CreateTestFile(testString);
+    Tokenizer tokenizer(tempFilePath);
+
+    struct ExpectedToken
+    {
+        std::string tokenStr;
+        Tokenizer::TokenType type;
+        int expectedIntVal; // Only checked when type == INT_CONST
+    };
+
+    std::vector<ExpectedToken> expected = {
+        {"let", Tokenizer::TokenType::KEYWORD, 0},
+        {"numbers", Tokenizer::TokenType::IDENTIFIER, 0},
+        {"[", Tokenizer::TokenType::SYMBOL, 0},
+        {"0", Tokenizer::TokenType::INT_CONST, 0},
+        {"]", Tokenizer::TokenType::SYMBOL, 0},
+        {"=", Tokenizer::TokenType::SYMBOL, 0},
+        {"32767", Tokenizer::TokenType::INT_CONST, 32767},
+        {";", Tokenizer::TokenType::SYMBOL, 0},
+        {"let", Tokenizer::TokenType::KEYWORD, 0},
+        {"total", Tokenizer::TokenType::IDENTIFIER, 0},
+        {"=", Tokenizer::TokenType::SYMBOL, 0},
+        {"100", Tokenizer::TokenType::INT_CONST, 100},
+        {"+", Tokenizer::TokenType::SYMBOL, 0},
+        {"42", Tokenizer::TokenType::INT_CONST, 42},
+        {"-", Tokenizer::TokenType::SYMBOL, 0},
+        {"0", Tokenizer::TokenType::INT_CONST, 0},
+        {";", Tokenizer::TokenType::SYMBOL, 0}};
+
+    int i = 0;
+    for (const auto &item : expected)
+    {
+        SCOPED_TRACE("Token index " + std::to_string(i++) + ": expecting '" +
+                     item.tokenStr + "'\n");
+
+        ASSERT_TRUE(tokenizer.hasMoreTokens());
+        tokenizer.advance();
+
+        EXPECT_EQ(tokenizer.getToken(), item.tokenStr);
+        EXPECT_EQ(tokenizer.tokenType(), item.type);
+
+        if (item.type == Tokenizer::TokenType::INT_CONST)
+        {
+            EXPECT_EQ(tokenizer.intVal(), item.expectedIntVal);
+        }
+    }
+
+    EXPECT_FALSE(tokenizer.hasMoreTokens());
+}
+
+TEST_F(TokenizerTest, HandlesStringConstants)
+{
+    std::string testString = "do Output.printString(\"Hello World!\");\n"
+                             "let msg = \"Jack Compiler 2026: Success!\";";
+
+    CreateTestFile(testString);
+    Tokenizer tokenizer(tempFilePath);
+
+    struct ExpectedToken
+    {
+        std::string tokenStr;
+        Tokenizer::TokenType type;
+        std::string expectedStringVal;
+    };
+
+    std::vector<ExpectedToken> expected = {
+        {"do", Tokenizer::TokenType::KEYWORD, ""},
+        {"Output", Tokenizer::TokenType::IDENTIFIER, ""},
+        {".", Tokenizer::TokenType::SYMBOL, ""},
+        {"printString", Tokenizer::TokenType::IDENTIFIER, ""},
+        {"(", Tokenizer::TokenType::SYMBOL, ""},
+        {"\"Hello World!\"", Tokenizer::TokenType::STRING_CONST,
+         "Hello World!"},
+        {")", Tokenizer::TokenType::SYMBOL, ""},
+        {";", Tokenizer::TokenType::SYMBOL, ""},
+        {"let", Tokenizer::TokenType::KEYWORD, ""},
+        {"msg", Tokenizer::TokenType::IDENTIFIER, ""},
+        {"=", Tokenizer::TokenType::SYMBOL, ""},
+        {"\"Jack Compiler 2026: Success!\"", Tokenizer::TokenType::STRING_CONST,
+         "Jack Compiler 2026: Success!"},
+        {";", Tokenizer::TokenType::SYMBOL, ""}};
+
+    int j = 0;
+    int i = 0;
+    for (const auto &item : expected)
+    {
+        SCOPED_TRACE("Token index " + std::to_string(i++) + ": expecting '" +
+                     item.tokenStr + "'\n");
+
+        ASSERT_TRUE(tokenizer.hasMoreTokens());
+        tokenizer.advance();
+
+        EXPECT_EQ(tokenizer.getToken(), item.tokenStr);
+        EXPECT_EQ(tokenizer.tokenType(), item.type);
+
+        if (item.type == Tokenizer::TokenType::STRING_CONST)
+        {
+            j++;
+            EXPECT_EQ(tokenizer.stringVal(), item.expectedStringVal);
+        }
+    }
+
+    EXPECT_EQ(j, 2);
+
+    EXPECT_FALSE(tokenizer.hasMoreTokens());
+}

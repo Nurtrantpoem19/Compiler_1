@@ -1,5 +1,6 @@
 #include "Tokenizer.hpp"
 #include <cctype>
+#include <cstddef>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -14,7 +15,6 @@ Tokenizer::Tokenizer(const std::filesystem::path inputPath)
     }
 }
 
-// Checks if there are more tokens left to process
 bool Tokenizer::hasMoreTokens()
 {
 
@@ -182,35 +182,53 @@ Tokenizer::KeyWord Tokenizer::getKeyword() const
     throw std::runtime_error("ERROR: not a keyword");
 }
 
-// Returns the single character of the current token
 char Tokenizer::symbol() const
 {
-    // TODO: Return the current symbol character.
-    // Should only be called if tokenType() is SYMBOL.
-    return ' ';
+    char c = token[0];
+    auto it = symbols.find(c);
+
+    if ((token.length() == 1))
+    {
+        return c;
+    }
+    else
+        throw std::runtime_error("ERROR: called symbol when not a symbol");
 }
 
-// Returns the identifier string of the current token
 std::string Tokenizer::identifier() const
 {
-    // TODO: Return the current identifier string.
-    // Should only be called if tokenType() is IDENTIFIER.
-    return "";
+
+    if (tokenType() != Tokenizer::TokenType::IDENTIFIER)
+    {
+        throw std::runtime_error("ERROR: TokenType != identifier");
+    }
+
+    return token;
 }
 
-// Returns the integer value of the current token
 int Tokenizer::intVal() const
 {
-    // TODO: Convert the current token string to an integer and return it.
-    // Should only be called if tokenType() is INT_CONST.
-    return 0;
+    if (tokenType() != Tokenizer::TokenType::INT_CONST)
+    {
+        throw std::runtime_error("ERROR: not an integer constant");
+    }
+    int value = std::stoi(token);
+
+    return value;
 }
 
-// Returns the string constant value without the surrounding double quotes
 std::string Tokenizer::stringVal() const
 {
-    // TODO: Return the string literal text, stripping away the starting and
-    // ending " characters. Should only be called if tokenType() is
-    // STRING_CONST.
-    return "";
+
+    if (tokenType() != Tokenizer::TokenType::STRING_CONST)
+    {
+        throw std::runtime_error("ERROR: Not a string constant");
+    }
+
+    if (token.length() >= 2 && token.front() == '"' && token.back() == '"')
+    {
+        return token.substr(1, token.length() - 2);
+    }
+
+    return token;
 }
