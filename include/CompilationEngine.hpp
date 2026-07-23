@@ -1,0 +1,6 @@
+#ifndef COMPILATIONENGINER_HPP
+#define COMPILATIONENGINER_HPP
+
+class CompilationEngine {};
+
+#endif // COMPILATIONENGINER_HPP
